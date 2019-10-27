@@ -1,0 +1,16 @@
+#!/bin/bash
+
+MY_DIR="$(readlink -f ${0} | xargs dirname)"
+source ${MY_DIR}/../prada_config
+
+OUTFILE="${PRADA_OUT_DIR}/log/traffic.txt"
+
+if [[ "${1}" == "start" ]]; then
+    rm -rf ${OUTFILE}
+    dev="${1}"
+    sudo tcpstat -i ${dev} -f "dst port 7000 and tcp" -o "b=%N\np=%n\n" -1 > ${OUTFILE} &
+elif [[ "${1}" == "stop" ]]; then
+    sudo killall -s 2 tcpstat
+else
+    echo "Usage: ${0} (start device|stop)"
+fi

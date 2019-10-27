@@ -1,0 +1,4 @@
+#!/bin/bash
+
+PRADA_SRC_DIR="~/prada"
+PRADA_OUT_DIR="~/.prada"

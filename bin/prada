@@ -1,0 +1,75 @@
+#!/bin/bash
+
+MY_DIR="$(readlink -f ${0} | xargs dirname)"
+source ${MY_DIR}/../prada_config
+
+if [ $# -ne 2 ]; then
+    echo -e "Error. Invalid parameters.\nUsage:"
+    echo "    ${0} (start|stop|running|waitrun)"
+    echo
+    echo "  start:   Start PRADA instance"
+    echo "  stop:    If running, stop any PRADA instance"
+    echo "  running: Return \"yes\" if a PRADA instance is running, else \"no\""
+    echo "  waitrun: Lock execution until PRADA reports to be running"
+    exit 1
+fi
+
+function running {
+    RET="$(netstat -na)"
+    CQL="$(echo ${RET} | grep -o -e "tcp[^:]*:9042[^L]*LISTEN")"
+    THR="$(echo ${RET} | grep -o -e "tcp[^:]*:9160[^L]*LISTEN")"
+    GOS="$(echo ${RET} | grep -o -e "tcp[^:]*:7000[^L]*LISTEN")"
+    PRT="$(echo ${RET} | grep -o -e "tcp[^:]*:7199[^L]*LISTEN")"
+    if [[ "$GOS" == "" ]] || [[ "$PRT" == "" ]]; then
+        echo "no"
+        return
+    fi
+    if [[ "$CQL" == "" ]] && [[ "$THR" == "" ]]; then
+        echo "no"
+    else
+        echo "yes"
+    fi
+}
+
+OP="${1}"
+
+if [[ "${OP}" == "start" ]]; then
+    # Reset cassandra DB to ensure that the initial tokens are used
+    # c.f. http://randomizedsort.blogspot.de/2011/10/initialtoken-in-cassandra-means-very.html
+
+    rm -rf ${PRADA_OUT_DIR}/log/commitlog/*
+    rm -rf ${PRADA_OUT_DIR}/log/system.log
+    rm -rf ${PRADA_OUT_DIR}/data/*
+    rm -rf ${PRADA_OUT_DIR}/saved_caches/*
+    rm -rf ${PRADA_OUT_DIR}/log
+    mkdir -p ${PRADA_OUT_DIR}/log
+    
+    pushd ${PRADA_SRC_DIR}/prada-src
+    ./bin/cassandra &> ${PRADA_OUT_DIR}/log/cassandra.log
+    popd
+elif [[ "${OP}" == "restorestart" ]]; then
+    # Use this one to start explicitly without using a clean state (because SSTables etc. were prepared)
+    # This way was chosen to be backwards compatible with all the other scripts and only selectively
+    # use saved states when absolutely wanted.
+
+    # However, delete log files ALL the time.
+    rm -rf ${PRADA_OUT_DIR}/log
+    mkdir -p ${PRADA_OUT_DIR}/log
+
+    pushd ${PRADA_SRC_DIR}/prada-src
+    ./bin/cassandra &> ${PRADA_OUT_DIR}/log/cassandra.log
+    popd
+elif [[ "${OP}" == "stop" ]]; then
+    KILL_PID="$(pgrep -f CassandraDaemon)"
+    if [[ "${KILL_PID}" != "" ]]; then
+        kill ${KILL_PID}
+    fi
+elif [[ "${OP}" == "running" ]]; then
+    running
+elif [[ "${OP}" == "waitrun" ]]; then
+    RUN="$(running)"
+    while [[ "${RUN}" == "no" ]]; do
+        sleep 1
+        RUN="$(running)"
+    done
+fi
