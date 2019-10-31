@@ -86,6 +86,62 @@ This command provides a simple means of getting only the occupied space by each 
 
 ### Evaluating Measurement Results
 
+Following the above-mentioned evaluation methods, you can gain data on (a) query completion time, (b) outgoing traffic, and (c) load distribution per cluster node.
+We now outline how to extract this data systematically from Cassandra's logs and the extracted statistics.
+
+#### Query Completion Time
+
+To track information about query completion time make sure to set `evalMode = true;` and keep `details = false;` in `prada-src/src/java/org/apache/cassandra/annotation/Evaluation.java`.
+
+In this state, PRADA will create a file `./eval/eval-measurements-1.txt` containing the queries executed alongside with their query completion time in microseconds, e.g.:
+```
+QueryProcessor.process(String, QueryState, QueryOptions)
+INSERT INTO eval.usertable (y_id, field0, field1, field2, field3, field4, field5, field6, field7, field8, field9) VALUES ('userid40000000000000', '566Z0FSJG7IIDR9UTIZF', 'TLEF7BCN0N6BLOZDEQ8Y', 'I21P1LP3NK0MP6GSKAYI', 'G9AW5FUMXKA14Z7B3UML', 'QZAEVQKPY9HHMOV0FJ59', 'ON2XKJX32KR561BC6JLA', '4CN5TT5DFY502LSJOP0L', 'A28TWSM2A8K4PP7X5CAX', 'A1IUNHXINQY0DK7YMBAJ', 'DPX5M4FD6CVBJSBJE3JK') WITH ANNOTATIONS 'country' = { 'DE', 'FI', 'IT' };
+TIME: 23274us
+```
+
+Subsequently, you can hence `grep` for the query types you are interested in and preserve the accompanying query completion time as follows:
+```
+query_pattern="INSERT INTO eval.usertable"
+cat eval/eval-measurements-1.txt | grep -A 1 ${query_pattern} | grep -o -E "^(${query_pattern}|TIME: [0-9]+us)"
+```
+However, since queries can be executed through different threads and `eval-measurement-1.txt` does not guarantee consistent thread ordering, you cannot iterate over queries one by one assuming a correct ordering.
+
+#### Outgoing Traffic
+
+Our [`traffic` tool](#traffic-measurements) uses `tcpstat` to accumutlate outgoing traffic in (by default) `~/.prada/log/traffic.txt`.
+This file has a very simple layout to parse directly:
+```
+b=[number_bytes_sent]
+p=[numper_packets_sent]
+```
+
+#### Cluster Load Distribution
+
+By applying the filtering described [before](#storage-measurements), it already becomes easy to extract the relevant data per keyspace and column family as the generated `*.lod` files have the following format:
+```
+Keyspace: eval_redirecteddata
+                Table: usertable
+                Space used (live), bytes: 92887
+                Space used (total), bytes: 92887
+Keyspace: eval_references
+                Table: usertable
+                Space used (live), bytes: 12079
+                Space used (total), bytes: 12079
+Keyspace: dataannotation
+                Table: ramdisk
+                Space used (live), bytes: 10017
+                Space used (total), bytes: 10017
+                Table: country
+                Space used (live), bytes: 10037
+                Space used (total), bytes: 10037
+                Table: encryption
+                Space used (live), bytes: 10256
+                Space used (total), bytes: 10256
+```
+
+Due to using `nodetool flush` before sampling the used-space statistics, the `live` and `total` storage should also be identical for other measurements.
+
 ## Preparing (Use Case) Input Data
 
 In addition to synthetic data, we used data from different datasets, each representing a single use case.

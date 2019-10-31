@@ -6,6 +6,7 @@ Since legislation increasingly responds to rising data protection and privacy co
 We present PRADA, a practical approach to account for compliance with data handling requirements in key-value based cloud storage systems.
 To achieve this goal, PRADA introduces a transparent data handling layer, which empowers clients to request specific data handling requirements and enables operators of cloud storage systems to comply with them.
 This repository contains our implementation of PRADA on top of the distributed database Cassandra.
+Furthermore, we provide information on how to conduct performance evaluations of PRADA-based clusters in [`eval/README.md`](eval/README.md).
 
 ## Publications
 
@@ -74,12 +75,6 @@ We assume that you performed the basic setup of your cluster nodes or virtual ma
     prada stop
     cd ..
   ```
-
-## Used Datasets
-
-* E-Mail: [Enron email dataset](https://www.cs.cmu.edu/~enron/) - Approximately, half a million real emails from 150 users, including mailbox structure.
-* Twitter: [twitter7](http://snap.stanford.edu/data/twitter7.html) - unfortunately, the dataset is no longer available.
-* IoT Data: Based on [dweet.io](http://dweet.io/) data, containing approximately 1.84 million authentic IoT messages.
 
 ## Acknowledgements
 
